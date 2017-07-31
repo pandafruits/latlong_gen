@@ -1,0 +1,122 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+    "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<!--
+
+  Utility to generate points for a polygon used as project boundary.
+  Cobbled from:
+  http://gmaps-samples-v3.googlecode.com/svn/trunk/poly/poly_edit.html
+  and
+  https://gist.github.com/cintimedia/896595
+ --> 
+<html>
+<head>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no"/>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8"/>
+<title>Google Map lat-long generator</title>
+<script type="text/javascript" src="http://maps.google.com/maps/api/js?key=AIzaSyAOVfPu3nAyFxe2sfvlLEH2nLZO9luQrSQ&sensor=false"></script>
+<script type="text/javascript">
+
+  var poly, map;
+  var markers = [];
+  var path = new google.maps.MVCArray;
+
+  function initialize() {
+    var startlocation = new google.maps.LatLng(-43.545222,172.592128);
+
+    var myOptions = {
+      zoom:15,
+      mapTypeId: google.maps.MapTypeId.SATELLITE,
+      center: startlocation
+    }
+	
+    map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+
+	poly = new google.maps.Polygon({
+		strokeWeight: 3,
+		fillColor: '#5555FF'
+    });
+    poly.setMap(map);
+    poly.setPaths(new google.maps.MVCArray([path]));
+
+    google.maps.event.addListener(map, 'click', addPoint);
+  }
+  
+  function addPoint(event) {
+    path.insertAt(path.length, event.latLng);
+
+    var marker = new google.maps.Marker({
+      position: event.latLng,
+      map: map,
+      draggable: true
+    });
+    markers.push(marker);
+    marker.setTitle("#" + path.length);
+	updateOutput();
+
+    google.maps.event.addListener(marker, 'click', function() {
+      marker.setMap(null);
+      for (var i = 0, I = markers.length; i < I && markers[i] != marker; ++i);
+      markers.splice(i, 1);
+      path.removeAt(i);
+	  updateOutput();
+      }
+    );
+
+    google.maps.event.addListener(marker, 'dragend', function() {
+      for (var i = 0, I = markers.length; i < I && markers[i] != marker; ++i);
+      path.setAt(i, marker.getPosition());
+	  updateOutput();
+      }
+    );
+  }
+
+
+  function serializeLatLng(ll) {
+	return '{"latitude": ' + ll.lat() + ', "longitude": ' + ll.lng() + '}';
+	}
+
+  function updateOutput() {
+    var points_text = "", format = "raw";
+	if (document.getElementById("json").checked) {
+	  format = "json";
+	  points_text += 'Points = \n[\n';
+	}
+
+	for (var i = 0; i < markers.length; i++) { 
+	  if ( format == "json" ) {
+		points_text += '    ' + serializeLatLng(markers[i].getPosition()) + ((i == markers.length - 1) ? '\n' : ',\n');
+	  }
+	  else {
+		points_text += markers[i].getPosition().lat() + ', ' + markers[i].getPosition().lng() + '\n';
+	  }
+	}
+	if ( format == "json" ) {
+	  points_text += '];'
+	}
+
+	var points_textarea=document.getElementById("points_textarea");
+	points_textarea.value = points_text;
+  }
+
+  function clearAll() {
+	for (var i = 0; i < markers.length; i++) {
+      markers[i].setMap(null);
+    }
+	markers = [];
+    path.clear();
+	updateOutput();
+  }
+</script>
+</head>
+<body onload="initialize()">
+<h2>Google Map lat-long generator</h2>
+Click on the map to get the lat-long's. Click on an existing marker to remove it.
+<br/><br/>
+<input type="button" value="Clear all" onclick="clearAll()" />&nbsp;<input type="checkbox" id="json" checked onchange="updateOutput()"/>JSON output
+<br/><br/>
+<div style="display:block">	
+	<div id="map_canvas" style="float:left; border: 1px solid black; position:absolute; width:600px; height:600px;position:relative"></div>
+	<div style="float:left;"><textarea readonly id="points_textarea" style="width:600px;height:600px" onClick="select_all();"></textarea></div>
+</div>
+</body>
+</html>
